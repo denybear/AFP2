@@ -1,4 +1,3 @@
-
 import os
 import socket
 import tempfile
@@ -6,24 +5,26 @@ import urllib.parse
 import urllib.request
 from email.utils import parsedate_to_datetime
 from datetime import timezone
+from typing import Optional
+import errno
+import shutil
+
 
 def _to_raw_github_url(url: str) -> str:
 	"""
 	Convert GitHub UI URL to raw URL when applicable.
 	- https://github.com/{owner}/{repo}/blob/{branch}/path -> https://raw.githubusercontent.com/{owner}/{repo}/{branch}/path
-	- https://github.com/{owner}/{repo}/raw/{branch}/path -> https://raw.githubusercontent.com/{owner}/{repo}/{branch}/path
+	- https://github.com/{owner}/{repo}/raw/{branch}/path  -> https://raw.githubusercontent.com/{owner}/{repo}/{branch}/path
 	- https://github.com/{owner}/{repo}/tree/{branch}/path is not a file; leave as-is
 	- If already raw.githubusercontent.com, return unchanged.
 	"""
 	parsed = urllib.parse.urlparse(url)
 	host = parsed.netloc.lower()
-
 	if host == "raw.githubusercontent.com":
 		return url
-
 	if host == "github.com":
 		parts = [p for p in parsed.path.split("/") if p]
-		# Expect at least: owner, repo, (blob|raw), branch, path...
+		# Expect at least: owner, repo, (blob/raw), branch, path...
 		if len(parts) >= 5 and parts[2] in ("blob", "raw"):
 			owner, repo, _, branch = parts[:4]
 			path_rest = "/".join(parts[4:])
@@ -36,7 +37,6 @@ def _to_raw_github_url(url: str) -> str:
 			# Heuristic: if 'main' or 'master' looks like a branch name and there's a path
 			if branch in ("main", "master") and path_rest:
 				return f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path_rest}"
-
 	# Fallback: return original
 	return url
 
@@ -52,14 +52,18 @@ def _http_head(url: str, timeout: float = 3.0):
 		return resp.status, dict(resp.headers)
 
 
-def _http_get_to_temp(url: str, timeout: float = 3.0) -> str:
+def _http_get_to_temp(url: str, timeout: float = 3.0, dest_dir: Optional[str] = None) -> str:
 	"""
 	Download a URL to a temporary file and return the temp file path.
-	Caller is responsible for deleting the file or moving it into place.
+	The temp file is created in dest_dir when provided, to ensure same-filesystem
+	atomic replace with os.replace(). Caller is responsible for deleting/moving.
 	"""
 	req = urllib.request.Request(url, method="GET")
 	with urllib.request.urlopen(req, timeout=timeout) as resp:
-		fd, tmp_path = tempfile.mkstemp(prefix="net_sync_", suffix=".tmp")
+		# Create temp file in same directory as the target when possible
+		if dest_dir and not os.path.isdir(dest_dir):
+			os.makedirs(dest_dir, exist_ok=True)
+		fd, tmp_path = tempfile.mkstemp(prefix="net_sync_", suffix=".tmp", dir=dest_dir)
 		try:
 			with os.fdopen(fd, "wb") as tmp:
 				chunk = resp.read(8192)
@@ -123,6 +127,20 @@ def _files_differ(path_a: str, path_b: str, chunk_size: int = 65536) -> bool:
 				return True
 
 
+def _atomic_replace_or_move(src: str, dst: str):
+	"""
+	Replace dst with src atomically when possible. If the operation crosses filesystems
+	(EXDEV / Errno 18), fall back to shutil.move which copies then removes src.
+	"""
+	try:
+		os.replace(src, dst)  # atomic on the same filesystem
+	except OSError as ex:
+		if ex.errno == errno.EXDEV:
+			shutil.move(src, dst)  # cross-device safe
+		else:
+			raise
+
+
 def sync_remote_file(
 	url: str,
 	local_filename: str = None,
@@ -155,9 +173,9 @@ def sync_remote_file(
 	  replaces only if they differ.
 	- If the local file does not exist, downloads it.
 	- Times out after `timeout` seconds on network operations.
+	- Temp files are created in the destination directory to avoid cross-device errors on Linux.
 	"""
 	raw_url = _to_raw_github_url(url)
-
 	# Determine local path
 	if local_filename is None:
 		name = os.path.basename(urllib.parse.urlparse(raw_url).path) or "downloaded.file"
@@ -165,13 +183,16 @@ def sync_remote_file(
 	else:
 		local_path = os.path.abspath(local_filename)
 
+	# Ensure temp files are created in the same directory as the destination
+	dir_of_local = os.path.dirname(local_path) or None
+
 	# --- Early guard: if local file does not exist, download it immediately ---
 	if not os.path.exists(local_path):
 		try:
-			tmp_path = _http_get_to_temp(raw_url, timeout=timeout)
+			tmp_path = _http_get_to_temp(raw_url, timeout=timeout, dest_dir=dir_of_local)
 		except (urllib.error.URLError, socket.timeout, ConnectionError) as e:
 			return (False, f"Network unavailable or timed out after {timeout}s while initial download: {e}")
-		os.replace(tmp_path, local_path)
+		_atomic_replace_or_move(tmp_path, local_path)
 		return (True, "Local file missing; downloaded new file from remote.")
 
 	try:
@@ -186,37 +207,26 @@ def sync_remote_file(
 
 		if status >= 400:
 			# If HEAD failed, try fallback by downloading and comparing content
-			# Only proceed to GET if we have no local file or need to check.
-			if not os.path.exists(local_path):
-				# Try to GET (may still fail on network)
+			# Local exists (early guard handled missing case); attempt GET to check content freshness
+			try:
+				tmp_path = _http_get_to_temp(raw_url, timeout=timeout, dest_dir=dir_of_local)
+			except (urllib.error.URLError, socket.timeout, ConnectionError) as e:
+				return (False, f"Remote HEAD error {status} and download failed/timed out after {timeout}s: {e}")
+			try:
+				if _files_differ(local_path, tmp_path):
+					_atomic_replace_or_move(tmp_path, local_path)
+					return (True, f"Replaced local file (HEAD {status}, content differed).")
+				else:
+					os.remove(tmp_path)
+					return (False, f"No update needed (HEAD {status}, content identical).")
+			except Exception as ex:
+				# Clean temp if still present
 				try:
-					tmp_path = _http_get_to_temp(raw_url, timeout=timeout)
-				except (urllib.error.URLError, socket.timeout, ConnectionError) as e:
-					return (False, f"Remote HEAD error {status} and download failed/timed out after {timeout}s: {e}")
-				# Move into place
-				os.replace(tmp_path, local_path)
-				return (True, f"Downloaded new file (HEAD {status}, no local file previously).")
-			else:
-				# Local exists; attempt GET to check content freshness
-				try:
-					tmp_path = _http_get_to_temp(raw_url, timeout=timeout)
-				except (urllib.error.URLError, socket.timeout, ConnectionError) as e:
-					return (False, f"Remote HEAD error {status} and download failed/timed out after {timeout}s: {e}")
-				try:
-					if _files_differ(local_path, tmp_path):
-						os.replace(tmp_path, local_path)
-						return (True, f"Replaced local file (HEAD {status}, content differed).")
-					else:
+					if os.path.exists(tmp_path):
 						os.remove(tmp_path)
-						return (False, f"No update needed (HEAD {status}, content identical).")
-				except Exception as ex:
-					# Clean temp if still present
-					try:
-						if os.path.exists(tmp_path):
-							os.remove(tmp_path)
-					except OSError:
-						pass
-					raise ex
+				except OSError:
+					pass
+				raise ex
 
 		# If we got headers, try Last-Modified comparison
 		last_mod_hdr = headers.get("Last-Modified")
@@ -233,30 +243,21 @@ def sync_remote_file(
 				return (False, "No update needed (remote is not newer than local).")
 			# else remote is newer: download and replace
 			try:
-				tmp_path = _http_get_to_temp(raw_url, timeout=timeout)
+				tmp_path = _http_get_to_temp(raw_url, timeout=timeout, dest_dir=dir_of_local)
 			except (urllib.error.URLError, socket.timeout, ConnectionError) as e:
 				return (False, f"Timed out or failed to download after {timeout}s: {e}")
-			os.replace(tmp_path, local_path)
+			_atomic_replace_or_move(tmp_path, local_path)
 			return (True, "Remote file was newer; replaced local file.")
-
-		# If no local file exists, download it
-		if local_dt is None:
-			try:
-				tmp_path = _http_get_to_temp(raw_url, timeout=timeout)
-			except (urllib.error.URLError, socket.timeout, ConnectionError) as e:
-				return (False, f"Network unavailable or timed out after {timeout}s: {e}")
-			os.replace(tmp_path, local_path)
-			return (True, "No local file; downloaded new file.")
 
 		# If Last-Modified not available, fallback to content comparison
 		if remote_dt is None:
 			try:
-				tmp_path = _http_get_to_temp(raw_url, timeout=timeout)
+				tmp_path = _http_get_to_temp(raw_url, timeout=timeout, dest_dir=dir_of_local)
 			except (urllib.error.URLError, socket.timeout, ConnectionError) as e:
 				return (False, f"Timed out or failed to download after {timeout}s: {e}")
 			try:
 				if _files_differ(local_path, tmp_path):
-					os.replace(tmp_path, local_path)
+					_atomic_replace_or_move(tmp_path, local_path)
 					return (True, "Last-Modified missing; content differed, replaced local file.")
 				else:
 					os.remove(tmp_path)
@@ -271,5 +272,6 @@ def sync_remote_file(
 
 		# Default no-op (shouldn’t reach here)
 		return (False, "No action taken.")
+
 	except Exception as e:
 		return (False, f"Error: {e}")
