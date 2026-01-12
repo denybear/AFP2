@@ -165,6 +165,16 @@ def sync_remote_file(
 	else:
 		local_path = os.path.abspath(local_filename)
 
+	# --- NEW: handle missing local file early ---
+	if not os.path.exists(local_path):
+		try:
+			tmp_path = _http_get_to_temp(raw_url, timeout=timeout)
+			os.replace(tmp_path, local_path)
+			return (True, "Local file missing; downloaded fresh copy.")
+		except (urllib.error.URLError, socket.timeout, ConnectionError) as e:
+			return (False, f"Failed to download missing file: {e}")
+	# --- Normal update logic continues below ---
+
 	try:
 		# First try HEAD to get Last-Modified
 		try:
