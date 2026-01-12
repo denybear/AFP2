@@ -46,12 +46,20 @@ def detectVideoHW ():
 	primaryVideo = None
 	secondaryVideo = None
 
-	for m in get_monitors():
-		if m.is_primary:					# primary monitor will always get the control panel
-			primaryVideo = m				# there should be only one primary monitor, no need for a list
-			print (primaryVideo)
-		else:
-			secondary_monitors.append (m)
+	monitors = get_monitors ()
+	for m in monitors:
+		try:
+			if m.is_primary:					# primary monitor will always get the control panel
+				primaryVideo = m				# there should be only one primary monitor, no need for a list
+				print (primaryVideo)
+			else:
+				secondary_monitors.append (m)
+		except Exception as e:					# in case is_primary is not implemented (linux)
+			if monitors.index (m) == 0:			# primary monitor is the first of the list, it will get the control panel
+				primaryVideo = m				# there should be only one primary monitor, no need for a list
+				print (primaryVideo)
+			else:
+				secondary_monitors.append (m)		
 
 	# In case of 1 monitor only, we don't display the video
 	if len (secondary_monitors) == 0:

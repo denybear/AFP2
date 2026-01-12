@@ -30,7 +30,7 @@ videoRate = 0.5
 playListIndex = 0
 keyGPIO = []
 keyGPIOName = []
-rotaryGPIO = [17, 18, 27]
+rotaryGPIO = [10, 9, 11]
 rotaryGPIOName = ["CLK", "DT", "SW"]
 playChar = [
 	0b00000,
@@ -167,7 +167,7 @@ def start_audio_thread(audio_file):
 
 # functions for managing the playlisyt
 # returns length of the playlist
-def playlist_length (playList)
+def playlist_length (playList):
 	count = 0
 	for item in playList:
 		# increase count for every sample found
@@ -178,19 +178,19 @@ def playlist_length (playList)
 	return count
 
 # returns, from counter value, the index in playlist, current song and current sample in the playlist
-def playlist_from_counter (playList, counter)
+def playlist_from_counter (playList, counter):
 	count = 0
 	for item in playList:
 		if len (item.sample) == 0:
-			count += 1
 			if count == counter:
 				return playList.index(item), item.song, ""
+			count += 1
 		else:
 			for sample in item.sample:
-				count+=1
 				if count == counter:
 					return playList.index(item), item.song, sample
-	return 0
+				count += 1					
+	return 0, playList[0].song, (playList[0].sample[0] if len (playList[0].sample[0]) !=0 else "")
 
 	
 ########
@@ -207,7 +207,7 @@ print(updated, msg)
 
 # init raspi hardware
 init_gpio ()
-rotaryCurrentState = (GPIO.input(rotary_gpio("CLK")) << 1) | GPIO.input(rotary_gpio("DT"))
+rotaryLastState = (GPIO.input(rotary_gpio("CLK")) << 1) | GPIO.input(rotary_gpio("DT"))
 
 # Initialize the LCD display, load custom chars
 lcd_interface.lcd_init()
@@ -223,7 +223,7 @@ playList = [Song(item['song'], item['video'], item['sample'], item['startPositio
 
 # Manage audio HW: select the right audio device for outputing sound; we can enter several devices (or device sub-names), the first one found will be used
 # HERE: we should use i2s audio driver
-isAudioHW, audioColor, primaryAudio = detectAudioHW (["Haut-parleur/Ecouteurs (Realtek High Definition Audio)", "Headphones 1 (Realtek HD Audio 2nd output with SST)"])
+isAudioHW, audioColor, primaryAudio = detectAudioHW (["snd_rpi_hifiberry_dac: HifiBerry DAC HiFi pcm5102a-hifi-0"])
 
 # Manage video HW: primary and secondary monitors
 isVideoHW, videoColor, primaryVideo, secondaryVideo = detectVideoHW ()
@@ -235,6 +235,7 @@ if primaryVideo is not None:
 
 # Initialize Pygame
 pygame.init()
+pygame.mixer.pre_init(devicename=primaryAudio['name'])
 pygame.mixer.init(devicename=primaryAudio['name'])
 pygame.mixer.music.set_volume (audioVolume)
 
@@ -518,10 +519,12 @@ while running:
 	key = (rotaryLastState << 2) | rotaryCurrentState
 	if key == 0b1110:
 		counter -= 1
+		eq.record_event("key", ["previous"])		# simulate pressing on sample "p" key
 	elif key in (0b0001, 0b0111, 0b1000):
 		pass
 	elif key == 0b1101:
 		counter += 1
+		eq.record_event("key", ["next"])			# simulate pressing on sample "n" key
 	elif key in (0b0100, 0b1011, 0b0010):
 		pass
 	rotaryLastState = rotaryCurrentState
@@ -535,7 +538,7 @@ while running:
 	if not GPIO.input(rotary_gpio("SW")):
 		eq.record_event("key", ["sample", "1"])		# simulate pressing on sample "1" key
 		# no need for display event, as key contain its own display events
-		#sleep(0.3)  # Debounce delay
+		time.sleep(0.3)  # Debounce delay
 
 
 # Cleanup
