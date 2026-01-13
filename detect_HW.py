@@ -1,9 +1,7 @@
 from screeninfo import get_monitors
 from operator import attrgetter
-import pyaudio
 import pygame
 import pygame._sdl2.audio as sdl2_audio
-import os
 
 
 #########################################################################
@@ -22,56 +20,25 @@ def detectAudioHW (deviceName):
 	audioColor = colorError
 	primaryAudio = None
 	
-	# Different processing, using os.name
-	if os.name == 'nt':
-		print("Running on Windows")
-		# Initialize PyAudio
-		p = pyaudio.PyAudio()
-    
-		# List all audio devices
-		for i in range(p.get_device_count()):
-			device_info = p.get_device_info_by_index(i)
-			print(f"Device {i}: {device_info['name']}")
+	pygame.init()
+	devices = sdl2_audio.get_audio_device_names(False)
+	print (devices)
 
-			# determine if we have the right device
-			for j in deviceName:				# deviceName list provided as an input can contain only subparts of actual device name
-				if j in device_info ['name']:	# we stop at first device found that is both in the list of HW device, and provided as parameter
-					isAudioHW = True
-					audioColor = colorNoError
-					primaryAudio = device_info
-					break						# exit first loop
-				else:
-					continue
-				break							# exit 2nd loop when 1st loop is finished
+	for dev in devices:
+		# determine if we have the right device (USB sound card or I2S soundcard or embedded jack)
+		for j in deviceName:				# deviceName list provided as an input can contain only subparts of actual device name
+			if j in dev:					# we stop at first device found that is both in the list of HW device, and provided as parameter
+				isAudioHW = True
+				audioColor = colorNoError
+				primaryAudio = dev
+				break						# exit first loop
+			else:
+				continue
+			break							# exit 2nd loop when 1st loop is finished
 
-		# Terminate PyAudio
-		p.terminate()
-		return isAudioHW, audioColor, primaryAudio
-
-
-	else:
-		print("Running on Linux or Unix-like OS")
-		pygame.init()
-		devices = sdl2_audio.get_audio_device_names(False)
-		print (devices)
-
-		for dev in devices:
-			# determine if we have the right device (USB sound card or I2S soundcard or embedded jack)
-			for j in deviceName:				# deviceName list provided as an input can contain only subparts of actual device name
-				if j in dev:					# we stop at first device found that is both in the list of HW device, and provided as parameter
-					isAudioHW = True
-					audioColor = colorNoError
-					device_info = {'name':''}
-					device_info ['name'] = dev
-					primaryAudio = device_info
-					break						# exit first loop
-				else:
-					continue
-				break							# exit 2nd loop when 1st loop is finished
-
-		# Leave
-		pygame.quit()
-		return isAudioHW, audioColor, primaryAudio
+	# Leave
+	pygame.quit()
+	return isAudioHW, audioColor, primaryAudio
     
 
 # Manage video HW: primary and secondary monitors

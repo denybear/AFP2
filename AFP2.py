@@ -232,7 +232,7 @@ if primaryVideo is not None:
 
 # Initialize Pygame
 pygame.init()
-pygame.mixer.init(devicename=primaryAudio['name'])
+pygame.mixer.init(devicename=primaryAudio)
 pygame.mixer.music.set_volume (audioVolume)
 
 # Create windows
