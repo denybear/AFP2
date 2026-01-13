@@ -1,0 +1,154 @@
+[
+  {
+    "song": "QR Code",
+    "video": "QR Code.mp4",
+    "sample": [],
+    "startPosition": "beginning"
+  },
+  {
+    "song": "Intro",
+    "video": "We Are.mp4",
+    "sample": [],
+    "startPosition": "beginning"
+  },
+  {
+    "song": "Echoes",
+    "video": "Echoes.mp4",
+    "sample": [
+      "Echoes_outro.mp3"
+    ],
+    "startPosition": "beginning"
+  },
+  {
+    "song": "Speak to me",
+    "video": "Dark Side.mp4",
+    "sample": [
+      "SpeakToMe_intro.mp3"
+    ],
+    "startPosition": "random"
+  },
+  {
+    "song": "Breathe",
+    "video": "Dark Side.mp4",
+    "sample": [],
+    "startPosition": "random"
+  },
+  {
+    "song": "Time",
+    "video": "Landing Strip.mp4",
+    "sample": [
+      "Time_intro.mp3"
+    ],
+    "startPosition": "beginning"
+  },
+  {
+    "song": "The Great Gig In The Sky",
+    "video": "Dark Side.mp4",
+    "sample": [
+      "TheGreatGigInTheSky_voice.mp3"
+    ],
+    "startPosition": "random"
+  },
+  {
+    "song": "Money",
+    "video": "Axis Triangle.mp4",
+    "sample": [
+      "Money_intro.mp3",
+      "Money_outro.mp3"
+    ],
+    "startPosition": "beginning"
+  },
+  {
+    "song": "Us & Them",
+    "video": "Wool Strings.mp4",
+    "sample": [
+      "UsAndThem_voice.mp3"
+    ],
+    "startPosition": "random"
+  },
+  {
+    "song": "Any Color You Like",
+    "video": "Dark Side.mp4",
+    "sample": [],
+    "startPosition": "random"
+  },
+  {
+    "song": "Brain Damage",
+    "video": "Procedural Moon.mp4",
+    "sample": [
+      "BrainDamage_risata.mp3"
+    ],
+    "startPosition": "beginning"
+  },
+  {
+    "song": "Eclipse",
+    "video": "Procedural Moon.mp4",
+    "sample": [
+      "Eclipse_outro.mp3"
+    ],
+    "startPosition": "beginning"
+  },
+  {
+    "song": "QR Code",
+    "video": "QR Code.mp4",
+    "sample": [],
+    "startPosition": "beginning"
+  },
+  {
+    "song": "Intro",
+    "video": "We Are.mp4",
+    "sample": [],
+    "startPosition": "beginning"
+  },
+  {
+    "song": "Dogs",
+    "video": "Animals.mp4",
+    "sample": [
+      "Dogs_1.mp3",
+      "Dogs_2.mp3"
+    ],
+    "startPosition": "beginning"
+  },
+  {
+    "song": "Have a Cigar",
+    "video": "Standard.mp4",
+    "sample": [],
+    "startPosition": "random"
+  },
+  {
+    "song": "Shine On You Crazy Diamond",
+    "video": "Astra Domine.mp4",
+    "sample": [],
+    "startPosition": "beginning"
+  },
+  {
+    "song": "Comfortably Numb",
+    "video": "Moving Dots.mp4",
+    "sample": [
+      "ComfortablyNumb_intro.mp3",
+      "ComfortablyNumb_aaaaa.mp3"
+    ],
+    "startPosition": "beginning"
+  },
+  {
+    "song": "Wish You Were Here",
+    "video": "Electric Strings.mp4",
+    "sample": [
+      "WishYouWereHere_intro.mp3",
+      "WishYouWereHere_outro.mp3"
+    ],
+    "startPosition": "beginning"
+  },
+  {
+    "song": "Outro",
+    "video": "We Are.mp4",
+    "sample": [],
+    "startPosition": "beginning"
+  },
+  {
+    "song": "QR Code",
+    "video": "QR Code.mp4",
+    "sample": [],
+    "startPosition": "beginning"
+  }
+]

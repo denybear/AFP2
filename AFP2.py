@@ -1,5 +1,3 @@
-# left do do: sample keys, sample play
-
 # Config 2: raspi with 2*16 char display as control screen, rotary encoder for track/sample selection, i2s board for sound, optional HDMI display for video
 import sys
 import time
@@ -222,8 +220,7 @@ with open('./playlist.json', 'r', encoding='utf-8') as file:
 playList = [Song(item['song'], item['video'], item['sample'], item['startPosition']) for item in data]
 
 # Manage audio HW: select the right audio device for outputing sound; we can enter several devices (or device sub-names), the first one found will be used
-# HERE: we should use i2s audio driver
-isAudioHW, audioColor, primaryAudio = detectAudioHW (["snd_rpi_hifiberry_dac: HifiBerry DAC HiFi pcm5102a-hifi-0"])
+isAudioHW, audioColor, primaryAudio = detectAudioHW (['USB Audio Device Analog Stereo','Built-in Audio Stereo'])
 
 # Manage video HW: primary and secondary monitors
 isVideoHW, videoColor, primaryVideo, secondaryVideo = detectVideoHW ()
@@ -235,7 +232,6 @@ if primaryVideo is not None:
 
 # Initialize Pygame
 pygame.init()
-pygame.mixer.pre_init(devicename=primaryAudio['name'])
 pygame.mixer.init(devicename=primaryAudio['name'])
 pygame.mixer.music.set_volume (audioVolume)
 
@@ -254,9 +250,8 @@ if isVideoHW:
 	cv2.moveWindow('Video', secondaryVideo.x, secondaryVideo.y)
 
 # force all inputs to be in the pygame window, and hide mouse
-#pygame.mouse.set_visible (False)
-#pygame.event.set_grab (True)
-#pygame.display.set_caption("Song Info Display")
+pygame.mouse.set_visible (False)
+pygame.event.set_grab (True)
 
 
 # Main loop
@@ -294,11 +289,11 @@ while running:
 		# display events
 		if next_event.label == "display":
 			# Display on 2*16 display
-			# HERE: we could display the sample name in reverse video in case it is playing???
 			# top left : playList [playListPrevious].song
 			# top right : playList [playListNext].song
 			# bottom left : playList [playListIndex].song
 			# bottom right: playList [playListIndex].sample
+			# bottom middle: play/stop icon
 
 			# Clear the display (no use as we write 2 complete lines of text)
 			#lcd_interface.lcd_clear()
