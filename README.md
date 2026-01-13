@@ -19,7 +19,6 @@ Then, at the bottom of the file, add this line:
 #dtparam=audio=on
 dtoverlay=hifiberry-dac
 ```
-(you can also try with dtoverlay=pcm5102a)
 
    
 also remove the default soundcards so i2s becomes default instead:
