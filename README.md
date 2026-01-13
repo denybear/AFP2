@@ -20,6 +20,16 @@ Then, at the bottom of the file, add this line:
 dtoverlay=hifiberry-dac
 ```
 (you can also try with dtoverlay=pcm5102a)
+
+   
+also remove the HDMI sound:
+```
+dtoverlay=vc4-fkms-v3d,audio=off
+```
+in newer systems, without the 'f', the syntax is different
+```
+dtoverlay=vc4-kms-v3d,noaudio
+```
 Save, then reboot.
 
 ## Getting SDL2 recognizing ALSA devices
@@ -42,7 +52,6 @@ pcm.!default {
     capture.pcm  "hw:1,0"
 }
 ```
-   
 then in shell, type the following:
 ```
 export SDL_AUDIODRIVER=alsa
